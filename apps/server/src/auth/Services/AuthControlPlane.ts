@@ -12,6 +12,7 @@ import * as Effect from "effect/Effect";
 import * as Context from "effect/Context";
 
 export const DEFAULT_SESSION_SUBJECT = "cli-issued-session";
+export const INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT = "administrative-bootstrap";
 
 export interface IssuedPairingLink {
   readonly id: string;

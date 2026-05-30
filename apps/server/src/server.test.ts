@@ -922,8 +922,16 @@ const splitHeaderTokens = (value: string | null) =>
     .filter((token) => token.length > 0)
     .toSorted();
 
-const assertBrowserApiCorsHeaders = (headers: Readonly<Record<string, string | undefined>>) => {
+const assertBrowserApiCorsResponseHeaders = (
+  headers: Readonly<Record<string, string | undefined>>,
+) => {
   assert.equal(headers["access-control-allow-origin"], "*");
+};
+
+const assertBrowserApiCorsPreflightHeaders = (
+  headers: Readonly<Record<string, string | undefined>>,
+) => {
+  assertBrowserApiCorsResponseHeaders(headers);
   assert.deepEqual(splitHeaderTokens(headers["access-control-allow-methods"] ?? null), [
     "GET",
     "OPTIONS",
@@ -1066,7 +1074,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       const body = (yield* response.json) as typeof testEnvironmentDescriptor;
 
       assert.equal(response.status, 200);
-      assertBrowserApiCorsHeaders(response.headers);
+      assertBrowserApiCorsResponseHeaders(response.headers);
       assert.deepEqual(body, testEnvironmentDescriptor);
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
@@ -1269,7 +1277,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       );
 
       assert.equal(bootstrapResponse.status, 200);
-      assertBrowserApiCorsHeaders(bootstrapResponse.headers);
+      assertBrowserApiCorsResponseHeaders(bootstrapResponse.headers);
       assert.equal(tokenBody.token_type, "Bearer");
       assert.equal(typeof tokenBody.access_token, "string");
 
@@ -1285,7 +1293,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       };
 
       assert.equal(sessionResponse.status, 200);
-      assertBrowserApiCorsHeaders(sessionResponse.headers);
+      assertBrowserApiCorsResponseHeaders(sessionResponse.headers);
       assert.equal(sessionBody.authenticated, true);
       assert.equal(sessionBody.sessionMethod, "bearer-access-token");
 
@@ -1300,7 +1308,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       };
 
       assert.equal(wsTicketResponse.status, 200);
-      assertBrowserApiCorsHeaders(wsTicketResponse.headers);
+      assertBrowserApiCorsResponseHeaders(wsTicketResponse.headers);
       assert.equal(typeof wsTicketBody.ticket, "string");
     }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
@@ -1320,7 +1328,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         });
 
         assert.equal(response.status, 204);
-        assertBrowserApiCorsHeaders(response.headers);
+        assertBrowserApiCorsPreflightHeaders(response.headers);
       }).pipe(Effect.provide(NodeHttpServer.layerTest)),
   );
 
@@ -1341,7 +1349,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       };
 
       assert.equal(response.status, 401);
-      assertBrowserApiCorsHeaders(response.headers);
+      assertBrowserApiCorsResponseHeaders(response.headers);
       assert.equal(body._tag, "EnvironmentAuthInvalidError");
       assert.equal(body.code, "auth_invalid");
       assert.equal(body.reason, "missing_credential");

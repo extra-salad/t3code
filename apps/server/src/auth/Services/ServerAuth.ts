@@ -77,6 +77,10 @@ export interface ServerAuthShape {
   readonly issuePairingCredential: (
     input?: AuthCreatePairingCredentialInput,
   ) => Effect.Effect<AuthPairingCredentialResult, ServerAuthInternalError>;
+  readonly issueStartupPairingCredential: () => Effect.Effect<
+    AuthPairingCredentialResult,
+    ServerAuthInternalError
+  >;
   readonly listPairingLinks: () => Effect.Effect<
     ReadonlyArray<AuthPairingLink>,
     ServerAuthInternalError
