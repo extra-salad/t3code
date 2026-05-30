@@ -11,7 +11,10 @@ import * as References from "effect/References";
 import { Argument, Command, Flag, GlobalFlag } from "effect/unstable/cli";
 
 import { AuthControlPlaneRuntimeLive } from "../auth/Layers/AuthControlPlane.ts";
-import { AuthControlPlane } from "../auth/Services/AuthControlPlane.ts";
+import {
+  AuthControlPlane,
+  INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT,
+} from "../auth/Services/AuthControlPlane.ts";
 import type { AuthControlPlaneShape } from "../auth/Services/AuthControlPlane.ts";
 import {
   formatIssuedPairingCredential,
@@ -124,7 +127,9 @@ const pairingListCommand = Command.make("list", {
       flags,
       (authControlPlane) =>
         Effect.gen(function* () {
-          const pairingLinks = yield* authControlPlane.listPairingLinks();
+          const pairingLinks = yield* authControlPlane.listPairingLinks({
+            excludeSubjects: [INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT],
+          });
           yield* Console.log(formatPairingCredentialList(pairingLinks, { json: flags.json }));
         }),
       {

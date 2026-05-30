@@ -1,7 +1,6 @@
 import { networkInterfaces } from "node:os";
 
 import { QrCode } from "@t3tools/shared/qrCode";
-import { AuthAdministrativeScopes } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { HttpServer } from "effect/unstable/http";
 
@@ -139,7 +138,7 @@ export const issueHeadlessServeAccessInfo = Effect.fn("issueHeadlessServeAccessI
     serverConfig.host,
     resolveListeningPort(httpServer.address, serverConfig.port),
   );
-  const issued = yield* serverAuth.issuePairingCredential({ scopes: AuthAdministrativeScopes });
+  const issued = yield* serverAuth.issueStartupPairingCredential();
 
   return {
     connectionString,

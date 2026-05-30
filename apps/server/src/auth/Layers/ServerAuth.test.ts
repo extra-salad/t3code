@@ -1,4 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { AuthAdministrativeScopes } from "@t3tools/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -137,6 +138,20 @@ it.layer(NodeServices.layer)("ServerAuthLive", (it) => {
       );
 
       expect(token.scope).toBe("orchestration:read");
+    }).pipe(Effect.provide(makeServerAuthLayer())),
+  );
+
+  it.effect("keeps user-issued administrative pairing links manageable", () =>
+    Effect.gen(function* () {
+      const serverAuth = yield* ServerAuth;
+      const pairingCredential = yield* serverAuth.issuePairingCredential({
+        scopes: AuthAdministrativeScopes,
+      });
+      const listedPairingLinks = yield* serverAuth.listPairingLinks();
+
+      expect(
+        listedPairingLinks.find((pairingLink) => pairingLink.id === pairingCredential.id)?.subject,
+      ).toBe("one-time-token");
     }).pipe(Effect.provide(makeServerAuthLayer())),
   );
 

@@ -1,11 +1,11 @@
 import {
-  AuthAccessManageScope,
   AuthAccessTokenType,
   AuthAdministrativeScopes,
   AuthStandardClientScopes,
   type AuthAccessTokenResult,
   type AuthClientSession,
   type AuthBrowserSessionResult,
+  type AuthEnvironmentScope,
   type AuthPairingCredentialResult,
   type AuthSessionState,
   type AuthWebSocketTicketResult,
@@ -17,7 +17,10 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 
-import { AuthControlPlane } from "../Services/AuthControlPlane.ts";
+import {
+  AuthControlPlane,
+  INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT,
+} from "../Services/AuthControlPlane.ts";
 import { ServerAuthPolicyLive } from "./ServerAuthPolicy.ts";
 import { BootstrapCredentialService } from "../Services/BootstrapCredentialService.ts";
 import { BootstrapCredentialError } from "../Services/BootstrapCredentialService.ts";
@@ -225,14 +228,16 @@ export const makeServerAuth = Effect.gen(function* () {
         ),
       );
 
-  const issuePairingCredential: ServerAuthShape["issuePairingCredential"] = (input) =>
+  const issuePairingCredentialForSubject = (input: {
+    readonly scopes: ReadonlyArray<AuthEnvironmentScope>;
+    readonly subject: string;
+    readonly label?: string;
+  }) =>
     authControlPlane
       .createPairingLink({
-        scopes: input?.scopes ?? AuthStandardClientScopes,
-        subject: input?.scopes?.includes(AuthAccessManageScope)
-          ? "administrative-bootstrap"
-          : "one-time-token",
-        ...(input?.label ? { label: input.label } : {}),
+        scopes: input.scopes,
+        subject: input.subject,
+        ...(input.label ? { label: input.label } : {}),
       })
       .pipe(
         Effect.mapError(
@@ -253,16 +258,31 @@ export const makeServerAuth = Effect.gen(function* () {
         ),
       );
 
+  const issuePairingCredential: ServerAuthShape["issuePairingCredential"] = (input) =>
+    issuePairingCredentialForSubject({
+      scopes: input?.scopes ?? AuthStandardClientScopes,
+      subject: "one-time-token",
+      ...(input?.label ? { label: input.label } : {}),
+    });
+
+  const issueStartupPairingCredential: ServerAuthShape["issueStartupPairingCredential"] = () =>
+    issuePairingCredentialForSubject({
+      scopes: AuthAdministrativeScopes,
+      subject: INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT,
+    });
+
   const listPairingLinks: ServerAuthShape["listPairingLinks"] = () =>
-    authControlPlane.listPairingLinks({ excludeSubjects: ["administrative-bootstrap"] }).pipe(
-      Effect.mapError(
-        (cause) =>
-          new ServerAuthInternalError({
-            message: "Failed to load pairing links.",
-            cause,
-          }),
-      ),
-    );
+    authControlPlane
+      .listPairingLinks({ excludeSubjects: [INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT] })
+      .pipe(
+        Effect.mapError(
+          (cause) =>
+            new ServerAuthInternalError({
+              message: "Failed to load pairing links.",
+              cause,
+            }),
+        ),
+      );
 
   const revokePairingLink: ServerAuthShape["revokePairingLink"] = (id) =>
     authControlPlane.revokePairingLink(id).pipe(
@@ -329,7 +349,7 @@ export const makeServerAuth = Effect.gen(function* () {
     );
 
   const issueStartupPairingUrl: ServerAuthShape["issueStartupPairingUrl"] = (baseUrl) =>
-    issuePairingCredential({ scopes: AuthAdministrativeScopes }).pipe(
+    issueStartupPairingCredential().pipe(
       Effect.map((issued) => {
         const url = new URL(baseUrl);
         url.pathname = "/pair";
@@ -388,6 +408,7 @@ export const makeServerAuth = Effect.gen(function* () {
     createBrowserSession,
     exchangeBootstrapCredentialForAccessToken,
     issuePairingCredential,
+    issueStartupPairingCredential,
     listPairingLinks,
     revokePairingLink,
     listClientSessions,
