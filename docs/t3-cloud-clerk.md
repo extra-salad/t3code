@@ -25,13 +25,15 @@ Configuration precedence is:
 2. Repository-root `.env.local`.
 3. Repository-root `.env`.
 
-The Clerk publishable key and relay URL are public identifiers, not secrets. Web, desktop, and
-mobile builds statically inject them during their build step. A built artifact does not need an
-environment file at runtime. CI release builds should set `T3CODE_CLERK_PUBLISHABLE_KEY` and
+The Clerk publishable key and relay URL are public identifiers, not secrets. Web, desktop, mobile,
+and bundled server builds statically inject them during their build step. A built artifact does not
+need an environment file at runtime. CI release builds should set `T3CODE_CLERK_PUBLISHABLE_KEY` and
 `T3CODE_RELAY_URL` before building. EAS preview and production builds should define the same
 client-facing values in their EAS environment.
 
-When either public value is absent, cloud UI is omitted.
+When both public values are absent, cloud UI and the `t3 cloud` CLI command group are omitted. The
+bundled server still accepts a runtime `T3CODE_RELAY_URL` override for self-hosted or operator-managed
+deployments.
 
 For a hosted relay deployment, copy `infra/relay/.env.example` to `infra/relay/.env`. The relay
 deployment reads `RELAY_DOMAIN`, `RELAY_ZONE_NAME`, and `CLERK_PUBLISHABLE_KEY` through Effect
