@@ -185,10 +185,14 @@ export const relayClientAuthLayer = Layer.effect(
   RelayClientAuth,
   Effect.gen(function* () {
     const config = yield* RelayConfiguration.RelayConfiguration;
+    const clerkClient = createClerkClient({
+      secretKey: Redacted.value(config.clerkSecretKey),
+      publishableKey: config.clerkPublishableKey,
+    });
     return {
       bearer: Effect.fn("relay.auth.client.bearer")(function* (httpEffect, { credential }) {
         const token = readHttpAuthorizationCredential(credential);
-        const verified = yield* verifyRelayClientBearerToken(config, token).pipe(
+        const verified = yield* verifyRelayClientBearerToken(config, token, clerkClient).pipe(
           Effect.tapError((error) =>
             Effect.annotateCurrentSpan(
               "relay.auth.clerk_verification_failure",
@@ -992,14 +996,17 @@ function verifyClerkBearerToken(config: RelayConfiguration.RelayConfigurationSha
 function verifyClerkOAuthBearerToken(
   config: RelayConfiguration.RelayConfigurationShape,
   token: string,
+  client?: ReturnType<typeof createClerkClient>,
 ) {
   return Effect.tryPromise({
     try: async () => {
-      const client = createClerkClient({
-        secretKey: Redacted.value(config.clerkSecretKey),
-        publishableKey: config.clerkPublishableKey,
-      });
-      const state = await client.authenticateRequest(
+      const clerkClient =
+        client ??
+        createClerkClient({
+          secretKey: Redacted.value(config.clerkSecretKey),
+          publishableKey: config.clerkPublishableKey,
+        });
+      const state = await clerkClient.authenticateRequest(
         new Request(config.relayIssuer, {
           headers: { authorization: `Bearer ${token}` },
         }),
@@ -1018,6 +1025,7 @@ function verifyClerkOAuthBearerToken(
 export function verifyRelayClientBearerToken(
   config: RelayConfiguration.RelayConfigurationShape,
   token: string,
+  client?: ReturnType<typeof createClerkClient>,
 ) {
   return verifyClerkBearerToken(config, token).pipe(
     Effect.flatMap((verified) =>
@@ -1026,7 +1034,7 @@ export function verifyRelayClientBearerToken(
         : Effect.fail(new ClerkTokenVerificationFailed({ cause: "missing_relay_audience" })),
     ),
     Effect.catch(() =>
-      verifyClerkOAuthBearerToken(config, token).pipe(
+      verifyClerkOAuthBearerToken(config, token, client).pipe(
         Effect.map((verified) => ({ ...verified, mode: "clerk_oauth_bearer" as const })),
       ),
     ),

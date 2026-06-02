@@ -4,6 +4,7 @@ import * as Layer from "effect/Layer";
 import {
   FetchHttpClient,
   HttpClient,
+  HttpClientError,
   HttpClientRequest,
   HttpClientResponse,
   HttpRouter,
@@ -441,7 +442,12 @@ export const makeServerLayer = Layer.unwrap(
                 Effect.flatMap(HttpClientResponse.filterStatusOk),
               ),
             ),
-            Effect.retry({ times: 4 }),
+            Effect.retry({
+              times: 4,
+              while: (error) =>
+                HttpClientError.isHttpClientError(error) &&
+                (error.response === undefined || error.response.status >= 500),
+            }),
             Effect.tap(() => Effect.logInfo("T3 Cloud desired link reconciled on startup")),
             Effect.catch((cause) =>
               Effect.logWarning("Failed to reconcile T3 Cloud desired link on startup", {
