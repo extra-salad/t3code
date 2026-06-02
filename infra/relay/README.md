@@ -88,6 +88,19 @@ connectivity, and relay tracing resources. Copy [`infra/relay/.env.example`](./.
 `infra/relay/.env` and fill in the deployment-specific values before deploying. Alchemy loads that
 file from the relay directory. Runtime secrets include Clerk and APNs credentials.
 
+The `prod` Alchemy stage owns the retained PlanetScale database. Every other stage references that
+database and provisions an isolated PlanetScale branch and runtime role, so deploy `prod` before
+creating preview or developer stages:
+
+```sh
+bun --cwd infra/relay run deploy -- --stage prod
+bun --cwd infra/relay run deploy -- --stage preview --env-file .env.preview
+```
+
+After a successful deploy, the wrapper updates the repository-root `.env` file with the relay URL
+derived from `T3_RELAY_DOMAIN`. That makes subsequent source builds point at the relay that was just
+deployed without copying the URL manually.
+
 See:
 
 - [T3 Cloud Clerk Setup](../../docs/t3-cloud-clerk.md) for Clerk keys, JWT templates, and waitlist
