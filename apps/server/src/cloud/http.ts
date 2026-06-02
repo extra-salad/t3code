@@ -451,17 +451,6 @@ const applyCloudRelayConfig = Effect.fn("environment.cloud.applyRelayConfig")(fu
     cloudUserId: payload.cloudUserId,
   });
   yield* validateCloudMintPublicKey(payload.cloudMintPublicKey);
-  const endpointRuntimeStatus = yield* dependencies.endpointRuntime.applyConfig(
-    payload.endpointRuntime,
-  );
-  const ok =
-    endpointRuntimeStatus.status === "disabled" || endpointRuntimeStatus.status === "running";
-  if (!ok) {
-    return yield* new EnvironmentCloudEndpointUnavailableError({
-      message: "Managed endpoint runtime could not be started.",
-      endpointRuntimeStatus,
-    });
-  }
 
   yield* dependencies.secrets.set(RELAY_URL_SECRET, stringToBytes(payload.relayUrl));
   yield* dependencies.secrets.set(
@@ -482,6 +471,18 @@ const applyCloudRelayConfig = Effect.fn("environment.cloud.applyRelayConfig")(fu
     );
   } else {
     yield* dependencies.secrets.remove(CLOUD_ENDPOINT_RUNTIME_CONFIG);
+  }
+
+  const endpointRuntimeStatus = yield* dependencies.endpointRuntime.applyConfig(
+    payload.endpointRuntime,
+  );
+  const ok =
+    endpointRuntimeStatus.status === "disabled" || endpointRuntimeStatus.status === "running";
+  if (!ok) {
+    return yield* new EnvironmentCloudEndpointUnavailableError({
+      message: "Managed endpoint runtime could not be started.",
+      endpointRuntimeStatus,
+    });
   }
   return { ok, endpointRuntimeStatus } satisfies EnvironmentCloudRelayConfigResult;
 });
