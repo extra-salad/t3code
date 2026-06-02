@@ -1,6 +1,7 @@
 import { AuthRelayWriteScope, EnvironmentHttpApi } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Schedule from "effect/Schedule";
 import {
   FetchHttpClient,
   HttpClient,
@@ -441,7 +442,7 @@ export const makeServerLayer = Layer.unwrap(
                 Effect.flatMap(HttpClientResponse.filterStatusOk),
               ),
             ),
-            Effect.retry({ times: 4 }),
+            Effect.retry({ schedule: Schedule.exponential("250 millis"), times: 4 }),
             Effect.tap(() => Effect.logInfo("T3 Cloud desired link reconciled on startup")),
             Effect.catch((cause) =>
               Effect.logWarning("Failed to reconcile T3 Cloud desired link on startup", {

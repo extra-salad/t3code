@@ -206,13 +206,17 @@ const make = Effect.gen(function* () {
         ),
       ),
     );
-    return yield* exchangeToken(metadata, {
+    const token = yield* exchangeToken(metadata, {
       grant_type: "authorization_code",
       code,
       redirect_uri: metadata.redirectUri,
       client_id: metadata.clientId,
       code_verifier: verifier,
     });
+    // Allow time for the HTTP callback server to flush the success HTML to the
+    // browser before the enclosing scope tears it down.
+    yield* Effect.sleep("500 millis");
+    return token;
   });
 
   const getExistingNoLock = Effect.fn("cloud.cli_token.get_existing_no_lock")(function* () {
