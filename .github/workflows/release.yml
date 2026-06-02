@@ -90,6 +90,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install dependencies
         run: vp install --frozen-lockfile
@@ -220,6 +221,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install dependencies
         run: vp install --frozen-lockfile
@@ -434,6 +436,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -480,6 +483,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install dependencies
         run: vp install --frozen-lockfile --filter=@t3tools/scripts
@@ -597,6 +601,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install release tooling dependencies
         run: vp install --frozen-lockfile --filter=@t3tools/scripts --filter=@t3tools/web
@@ -698,6 +703,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install dependencies
         run: vp install --frozen-lockfile --filter=@t3tools/scripts
@@ -756,6 +762,7 @@ jobs:
         with:
           node-version-file: package.json
           cache: true
+          run-install: false
 
       - name: Install dependencies
         run: vp install --frozen-lockfile --filter=@t3tools/scripts
