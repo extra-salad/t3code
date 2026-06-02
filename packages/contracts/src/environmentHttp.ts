@@ -464,6 +464,13 @@ export class EnvironmentCloudHttpApi extends HttpApiGroup.make("cloud")
     }).middleware(EnvironmentAuthenticatedAuth),
   )
   .add(
+    HttpApiEndpoint.post("reconcileLink", "/api/cloud/reconcile-link", {
+      headers: OptionalBearerHeaders,
+      success: EnvironmentCloudRelayConfigResult,
+      error: [...EnvironmentHttpCloudErrors, EnvironmentCloudEndpointUnavailableError],
+    }).middleware(EnvironmentAuthenticatedAuth),
+  )
+  .add(
     HttpApiEndpoint.post("unlink", "/api/cloud/unlink", {
       headers: OptionalBearerHeaders,
       success: EnvironmentCloudRelayConfigResult,

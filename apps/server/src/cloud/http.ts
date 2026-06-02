@@ -594,7 +594,6 @@ const reconcileDesiredCloudLinkWith = Effect.fn("environment.cloud.reconcileDesi
       },
       schema: RelayEnvironmentLinkResponse,
     });
-    yield* CliState.setCliDesiredCloudLink(true);
     return yield* applyCloudRelayConfig(dependencies, {
       relayUrl,
       relayIssuer: link.relayIssuer,
@@ -618,6 +617,91 @@ export const reconcileDesiredCloudLink = Effect.fn("environment.cloud.reconcileD
     return yield* reconcileDesiredCloudLinkWith(yield* cloudHttpDependencies, localOrigin);
   },
 );
+
+const cloudReconcileLinkHandler = (dependencies: CloudHttpDependencies) =>
+  Effect.gen(function* () {
+    yield* requireEnvironmentScope(AuthRelayWriteScope);
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const url = requestAbsoluteUrl(request);
+    if (url === null) {
+      return yield* new EnvironmentHttpInternalServerError({
+        message: "Could not determine server address for cloud link reconciliation.",
+      });
+    }
+    const localOrigin = new URL(url).origin;
+    const localUrl = new URL(localOrigin);
+    const localWsOrigin = localOrigin.replace(/^http/u, "ws");
+    const token = yield* dependencies.cliTokenManager.getExisting.pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () =>
+            Effect.fail(
+              new EnvironmentHttpUnauthorizedError({
+                message: "Run `t3 cloud link` to authorize this environment.",
+              }),
+            ),
+          onSome: Effect.succeed,
+        }),
+      ),
+    );
+    const relayUrl = yield* requireRelayUrl;
+    const challenge = yield* relayClientRequest(dependencies, {
+      url: `${relayUrl}/v1/client/environment-link-challenges`,
+      token: token.accessToken,
+      payload: {
+        notificationsEnabled: true,
+        liveActivitiesEnabled: true,
+        managedTunnelsEnabled: true,
+      },
+      schema: RelayEnvironmentLinkChallengeResponse,
+    });
+    const proof = yield* makeCloudLinkProof(
+      dependencies,
+      {
+        challenge: challenge.challenge,
+        relayIssuer: relayUrl,
+        endpoint: {
+          httpBaseUrl: localOrigin,
+          wsBaseUrl: localWsOrigin,
+          providerKind: "cloudflare_tunnel",
+        },
+        origin: {
+          localHttpHost: localUrl.hostname,
+          localHttpPort: endpointRequestPort(localUrl),
+        },
+      },
+      localOrigin,
+    );
+    const link = yield* relayClientRequest(dependencies, {
+      url: `${relayUrl}/v1/client/environment-links`,
+      token: token.accessToken,
+      payload: {
+        proof,
+        notificationsEnabled: true,
+        liveActivitiesEnabled: true,
+        managedTunnelsEnabled: true,
+      },
+      schema: RelayEnvironmentLinkResponse,
+    });
+    return yield* applyCloudRelayConfig(dependencies, {
+      relayUrl,
+      relayIssuer: link.relayIssuer,
+      cloudUserId: link.cloudUserId,
+      environmentCredential: link.environmentCredential,
+      cloudMintPublicKey: link.cloudMintPublicKey,
+      endpointRuntime: link.endpointRuntime,
+    });
+  }).pipe(
+    Effect.catchTags({
+      ServerAuthInternalError: (error) =>
+        failEnvironmentCloudInternalError(error.message)(error.cause),
+      CloudCliTokenManagerError: (error) =>
+        failEnvironmentCloudInternalError(error.message)(error.cause),
+      PlatformError: failEnvironmentCloudInternalError("Could not reconcile cloud link."),
+      SchemaError: failEnvironmentCloudInternalError("Could not reconcile cloud link."),
+      SecretStoreError: failEnvironmentCloudInternalError("Could not reconcile cloud link."),
+    }),
+  );
 
 const readCloudLinkState = Effect.fn("environment.cloud.readLinkState")(function* (
   dependencies: CloudHttpDependencies,
@@ -945,6 +1029,7 @@ export const cloudHttpApiLayer = HttpApiBuilder.group(
     return handlers
       .handle("linkProof", ({ payload }) => cloudLinkProofHandler(dependencies, payload))
       .handle("relayConfig", ({ payload }) => cloudRelayConfigHandler(dependencies, payload))
+      .handle("reconcileLink", () => cloudReconcileLinkHandler(dependencies))
       .handle("linkState", () => cloudLinkStateHandler(dependencies))
       .handle("unlink", () => cloudUnlinkHandler(dependencies))
       .handle("preferences", ({ payload }) => cloudPreferencesHandler(dependencies, payload))

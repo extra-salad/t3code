@@ -125,6 +125,33 @@ type LiveCloudActionResult =
   | { readonly status: "succeeded" }
   | { readonly status: "failed"; readonly cause: unknown };
 
+const runLiveCloudLink = Effect.fn("cloud.cli.run_live_link")(function* () {
+  const config = yield* ServerConfig;
+  const runtimeState = yield* readPersistedServerRuntimeState(config.serverRuntimeStatePath);
+  if (Option.isNone(runtimeState)) {
+    return { status: "not-running" } satisfies LiveCloudActionResult;
+  }
+
+  const environmentAuth = yield* EnvironmentAuth.EnvironmentAuth;
+  const result = yield* Effect.exit(
+    withCloudCliSessionToken(environmentAuth, (token) =>
+      Effect.gen(function* () {
+        const httpClient = yield* HttpClient.HttpClient;
+        const client = yield* HttpApiClient.makeWith(EnvironmentHttpApi, {
+          baseUrl: runtimeState.value.origin,
+          httpClient,
+        });
+        return yield* client.cloud.reconcileLink({
+          headers: { authorization: `Bearer ${token}` },
+        });
+      }).pipe(Effect.timeout(CLOUD_CLI_LIVE_SERVER_TIMEOUT)),
+    ),
+  );
+  return Exit.isSuccess(result)
+    ? ({ status: "succeeded" } satisfies LiveCloudActionResult)
+    : ({ status: "failed", cause: result.cause } satisfies LiveCloudActionResult);
+});
+
 const runLiveCloudUnlink = Effect.fn("cloud.cli.run_live_unlink")(function* () {
   const config = yield* ServerConfig;
   const runtimeState = yield* readPersistedServerRuntimeState(config.serverRuntimeStatePath);
@@ -286,9 +313,19 @@ const cloudLinkCommand = Command.make("link", {
         const tokens = yield* CliTokenManager.CloudCliTokenManager;
         yield* tokens.get;
         yield* CliState.setCliDesiredCloudLink(true);
-        yield* Console.log(
-          "This T3 environment will be available over T3 Cloud the next time T3 starts.",
-        );
+
+        const liveResult = yield* runLiveCloudLink();
+        if (liveResult.status === "succeeded") {
+          yield* Console.log("T3 Cloud exposure is active on the running server.");
+        } else if (liveResult.status === "failed") {
+          yield* Console.warn(
+            "Could not reconcile cloud link on the running server. T3 Cloud will be available the next time T3 starts.",
+          );
+        } else {
+          yield* Console.log(
+            "This T3 environment will be available over T3 Cloud the next time T3 starts.",
+          );
+        }
       }),
     ),
   ),

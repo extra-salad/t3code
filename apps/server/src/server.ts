@@ -420,9 +420,15 @@ export const makeServerLayer = Layer.unwrap(
         const server = yield* HttpServer.HttpServer;
         const address = server.address;
         if (typeof address === "string" || !("port" in address)) return;
+        const localOrigin = `http://127.0.0.1:${address.port}`;
         yield* Effect.forkScoped(
           Effect.sleep("250 millis").pipe(
-            Effect.andThen(reconcileDesiredCloudLink(`http://127.0.0.1:${address.port}`)),
+            Effect.andThen(
+              Effect.gen(function* () {
+                if (!(yield* CloudCliState.readCliDesiredCloudLink)) return;
+                yield* reconcileDesiredCloudLink(localOrigin);
+              }),
+            ),
             Effect.retry({ times: 4 }),
             Effect.tap(() => Effect.logInfo("T3 Cloud desired link reconciled on startup")),
             Effect.catch((cause) =>
