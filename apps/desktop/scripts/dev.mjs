@@ -2,7 +2,11 @@ import { spawn } from "node:child_process";
 
 const commands = [
   { name: "desktop-bundle", command: "vp", args: ["pack", "--watch"] },
-  { name: "desktop-electron", command: "node", args: ["scripts/dev-electron.mjs"] },
+  {
+    name: "desktop-electron",
+    command: "node",
+    args: ["scripts/dev-electron.mjs"],
+  },
 ];
 
 let shuttingDown = false;
@@ -29,16 +33,23 @@ for (const { name, command, args } of commands) {
 
   child.once("error", (error) => {
     console.error(`[${name}] failed to start:`, error);
+    children.delete(child);
     stopChildren();
     process.exitCode = 1;
+
+    if (children.size === 0) {
+      process.exit(process.exitCode);
+    }
   });
 
   child.once("exit", (code, signal) => {
     children.delete(child);
 
-    if (!shuttingDown && (signal !== null || code !== 0)) {
+    if (!shuttingDown) {
       stopChildren();
-      process.exitCode = code ?? 1;
+      if (signal !== null || code !== 0) {
+        process.exitCode = code ?? 1;
+      }
     }
 
     if (children.size === 0) {
