@@ -137,7 +137,7 @@ const make = Effect.gen(function* () {
       yield* crypto.digest("SHA-256", new TextEncoder().encode(verifier)),
     );
     const state = yield* crypto.randomUUIDv4;
-    const callback = yield* Deferred.make<string>();
+    const callback = yield* Deferred.make<string, CloudCliTokenManagerError>();
     const callbackRoute = HttpRouter.add(
       "GET",
       "/callback",
@@ -146,6 +146,12 @@ const make = Effect.gen(function* () {
         const url = new URL(request.originalUrl, metadata.redirectUri);
         const code = url.searchParams.get("code");
         if (url.searchParams.get("state") !== state || !code) {
+          yield* Deferred.fail(
+            callback,
+            new CloudCliTokenManagerError({
+              message: "Invalid T3 Cloud authorization callback (missing code or state mismatch).",
+            }),
+          );
           return HttpServerResponse.text("Invalid T3 Cloud authorization callback.", {
             status: 400,
           });
