@@ -53,7 +53,7 @@ export class CloudCliTokenManagerError extends Data.TaggedError("CloudCliTokenMa
 export interface CloudCliTokenManagerShape {
   readonly get: Effect.Effect<PersistedToken, CloudCliTokenManagerError>;
   readonly getExisting: Effect.Effect<Option.Option<PersistedToken>, CloudCliTokenManagerError>;
-  readonly hasCredential: Effect.Effect<boolean, CloudCliTokenManagerError>;
+  readonly hasCredential: Effect.Effect<boolean>;
   readonly clear: Effect.Effect<void, CloudCliTokenManagerError>;
 }
 
@@ -218,7 +218,7 @@ const make = Effect.gen(function* () {
   const hasCredential = semaphore.withPermits(1)(
     read().pipe(
       Effect.map(Option.isSome),
-      wrapError("Could not read the stored T3 Cloud CLI credential."),
+      Effect.catch(() => Effect.succeed(false)),
     ),
   );
   const get = semaphore.withPermits(1)(
