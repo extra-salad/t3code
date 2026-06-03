@@ -334,6 +334,7 @@ export const makeOrchestrationIntegrationHarness = (
           refreshLocalStatus: () =>
             Effect.succeed({
               isRepo: true,
+              kind: "git",
               hasPrimaryRemote: false,
               isDefaultRef: true,
               refName: "main",

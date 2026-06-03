@@ -80,6 +80,7 @@ import { readLocalApi } from "~/localApi";
 import { getSourceControlPresentation } from "~/sourceControlPresentation";
 import { useStore } from "~/store";
 import { createThreadSelectorByRef } from "~/storeSelectors";
+import { resolveVcsActionPresentation, resolveVcsTerms } from "~/vcsPresentation";
 
 interface GitActionsControlProps {
   gitCwd: string | null;
@@ -1069,8 +1070,12 @@ export default function GitActionsControl({
   const SourceControlIcon = sourceControlPresentation.Icon;
   // Default to true while loading so we don't flash init controls.
   const isRepo = gitStatus?.isRepo ?? true;
+  const vcsKind = gitStatus?.kind ?? null;
+  const vcsTerms = resolveVcsTerms(vcsKind);
+  const vcsActionPresentation = resolveVcsActionPresentation(vcsKind);
+  const supportsGitWorkflowActions = !isRepo || vcsActionPresentation.supportsGitWorkflowActions;
   const hasPrimaryRemote = gitStatus?.hasPrimaryRemote ?? false;
-  const gitStatusForActions = gitStatus;
+  const gitStatusForActions = supportsGitWorkflowActions ? gitStatus : null;
 
   const allFiles = gitStatusForActions?.workingTree.files ?? [];
   const selectedFiles = allFiles.filter((f) => !excludedFiles.has(f.path));
@@ -1613,6 +1618,25 @@ export default function GitActionsControl({
         >
           {initAction.isPending ? "Initializing..." : "Initialize Git"}
         </Button>
+      ) : !supportsGitWorkflowActions ? (
+        <Popover>
+          <PopoverTrigger
+            openOnHover
+            render={
+              <Button
+                aria-disabled="true"
+                className="cursor-not-allowed opacity-70"
+                size="xs"
+                variant="outline"
+              />
+            }
+          >
+            {vcsTerms.systemName} {vcsTerms.repositoryNoun}
+          </PopoverTrigger>
+          <PopoverPopup tooltipStyle side="bottom" align="end">
+            {vcsActionPresentation.unsupportedGitWorkflowDescription}
+          </PopoverPopup>
+        </Popover>
       ) : (
         <Group aria-label="Git actions" className="shrink-0">
           {quickActionDisabledReason ? (

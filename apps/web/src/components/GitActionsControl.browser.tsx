@@ -98,6 +98,7 @@ vi.mock("~/lib/vcsStatusState", () => ({
   resetVcsStatusStateForTests: () => undefined,
   useVcsStatus: vi.fn(() => ({
     data: {
+      kind: "git",
       isRepo: true,
       sourceControlProvider: {
         kind: "github",

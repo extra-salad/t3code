@@ -8,10 +8,13 @@ import * as VcsProcess from "./VcsProcess.ts";
 import * as VcsProjectConfig from "./VcsProjectConfig.ts";
 import * as VcsDriverRegistry from "./VcsDriverRegistry.ts";
 
-const processOutput = (stdout: string): VcsProcess.VcsProcessOutput => ({
-  exitCode: ChildProcessSpawner.ExitCode(0),
+const commandCalls = (calls: ReadonlyArray<VcsProcess.VcsProcessInput>) =>
+  calls.map((call) => [call.command].concat(call.args));
+
+const processOutput = (stdout: string, exitCode = 0, stderr = ""): VcsProcess.VcsProcessOutput => ({
+  exitCode: ChildProcessSpawner.ExitCode(exitCode),
   stdout,
-  stderr: "",
+  stderr,
   stdoutTruncated: false,
   stderrTruncated: false,
 });
@@ -33,6 +36,7 @@ describe("VcsDriverRegistry", () => {
           run: () => Effect.succeed(processOutput("")),
         }),
       ),
+      Layer.provide(NodeServices.layer),
     );
 
     return Effect.gen(function* () {
@@ -73,6 +77,7 @@ describe("VcsDriverRegistry", () => {
             }),
         }),
       ),
+      Layer.provide(NodeServices.layer),
     );
 
     return Effect.gen(function* () {
@@ -90,6 +95,77 @@ describe("VcsDriverRegistry", () => {
           "rev-parse --git-common-dir",
         ],
       );
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("resolves an explicitly requested jj repository", () => {
+    const calls: VcsProcess.VcsProcessInput[] = [];
+    const layer = Layer.effect(VcsDriverRegistry.VcsDriverRegistry, VcsDriverRegistry.make()).pipe(
+      Layer.provide(
+        Layer.mock(VcsProjectConfig.VcsProjectConfig)({
+          resolveKind: (input) => Effect.succeed(input.requestedKind ?? "auto"),
+        }),
+      ),
+      Layer.provide(
+        Layer.mock(VcsProcess.VcsProcess)({
+          run: (input) =>
+            Effect.sync(() => {
+              calls.push(input);
+              const command = input.args.join(" ");
+              if (input.command === "jj" && command === "--no-pager root") {
+                return processOutput("/repo\n");
+              }
+              return processOutput("", 1, "not found");
+            }),
+        }),
+      ),
+      Layer.provide(NodeServices.layer),
+    );
+
+    return Effect.gen(function* () {
+      const registry = yield* VcsDriverRegistry.VcsDriverRegistry;
+      const handle = yield* registry.resolve({ cwd: "/repo", requestedKind: "jj" });
+
+      assert.equal(handle.kind, "jj");
+      assert.equal(handle.repository.rootPath, "/repo");
+      assert.deepStrictEqual(commandCalls(calls), [["jj", "--no-pager", "root"]]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("prefers jj auto-detection before git for colocated repositories", () => {
+    const calls: VcsProcess.VcsProcessInput[] = [];
+    const layer = Layer.effect(VcsDriverRegistry.VcsDriverRegistry, VcsDriverRegistry.make()).pipe(
+      Layer.provide(
+        Layer.mock(VcsProjectConfig.VcsProjectConfig)({
+          resolveKind: (input) => Effect.succeed(input.requestedKind ?? "auto"),
+        }),
+      ),
+      Layer.provide(
+        Layer.mock(VcsProcess.VcsProcess)({
+          run: (input) =>
+            Effect.sync(() => {
+              calls.push(input);
+              const command = input.args.join(" ");
+              if (input.command === "jj" && command === "--no-pager root") {
+                return processOutput("/repo\n");
+              }
+              if (input.command === "git") {
+                return processOutput("true\n");
+              }
+              return processOutput("", 1, "not found");
+            }),
+        }),
+      ),
+      Layer.provide(NodeServices.layer),
+    );
+
+    return Effect.gen(function* () {
+      const registry = yield* VcsDriverRegistry.VcsDriverRegistry;
+      const handle = yield* registry.resolve({ cwd: "/repo" });
+
+      assert.equal(handle.kind, "jj");
+      assert.equal(handle.repository.rootPath, "/repo");
+      assert.deepStrictEqual(commandCalls(calls), [["jj", "--no-pager", "root"]]);
     }).pipe(Effect.provide(layer));
   });
 });

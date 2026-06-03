@@ -308,6 +308,7 @@ const baseServerConfig: ServerConfig = {
 };
 
 const baseGitStatus: VcsStatusResult = {
+  kind: "git",
   isRepo: true,
   hasPrimaryRemote: true,
   isDefaultRef: false,

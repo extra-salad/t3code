@@ -21,6 +21,7 @@ function registerListener<T>(listeners: Set<(event: T) => void>, listener: (even
 }
 
 const BASE_STATUS: VcsStatusResult = {
+  kind: "git",
   isRepo: true,
   hasPrimaryRemote: true,
   isDefaultRef: false,

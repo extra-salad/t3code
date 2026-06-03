@@ -37,6 +37,7 @@ function createDeferred<T>() {
 const TARGET = { environmentId: EnvironmentId.make("env-local"), cwd: "/repo" } as const;
 
 const BASE_STATUS: VcsStatusResult = {
+  kind: "git",
   isRepo: true,
   hasPrimaryRemote: true,
   isDefaultRef: false,

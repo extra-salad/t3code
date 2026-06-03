@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import * as Context from "effect/Context";
-import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -31,6 +30,7 @@ import {
 import * as GitVcsDriverCore from "./GitVcsDriverCore.ts";
 import * as VcsDriver from "./VcsDriver.ts";
 import * as VcsProcess from "./VcsProcess.ts";
+import { nowFreshness } from "./VcsFreshness.ts";
 
 export interface ExecuteGitInput {
   readonly operation: string;
@@ -234,15 +234,6 @@ const WORKSPACE_GIT_HARDENED_CONFIG_ARGS = [
   "-c",
   "core.untrackedCache=false",
 ] as const;
-
-const nowFreshness = Effect.fn("GitVcsDriver.nowFreshness")(function* () {
-  const now = yield* DateTime.now;
-  return {
-    source: "live-local" as const,
-    observedAt: now,
-    expiresAt: Option.none(),
-  };
-});
 
 function splitNullSeparatedPaths(input: string, truncated: boolean): string[] {
   const parts = input.split("\0");

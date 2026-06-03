@@ -899,6 +899,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
       expect(status).toEqual({
         isRepo: false,
+        kind: "unknown",
         hasPrimaryRemote: false,
         isDefaultRef: false,
         refName: null,
@@ -929,6 +930,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
 
       expect(status).toEqual({
         isRepo: false,
+        kind: "unknown",
         hasPrimaryRemote: false,
         isDefaultRef: false,
         refName: null,
@@ -3267,6 +3269,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           expect.objectContaining({
             kind: "hook_finished",
             hookName: "pre-commit",
+            exitCode: 0,
           }),
           expect.objectContaining({
             kind: "action_finished",

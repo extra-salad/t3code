@@ -17,6 +17,8 @@ import { Toggle } from "../ui/toggle";
 import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./OpenInPicker";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
+import { resolveVcsTerms } from "../../vcsPresentation";
+import type { VcsDriverKind } from "@t3tools/contracts";
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -24,7 +26,8 @@ interface ChatHeaderProps {
   draftId?: DraftId;
   activeThreadTitle: string;
   activeProjectName: string | undefined;
-  isGitRepo: boolean;
+  isVcsRepo: boolean;
+  vcsKind: VcsDriverKind | null;
   openInCwd: string | null;
   activeProjectScripts: ProjectScript[] | undefined;
   preferredScriptId: string | null;
@@ -62,7 +65,8 @@ export const ChatHeader = memo(function ChatHeader({
   draftId,
   activeThreadTitle,
   activeProjectName,
-  isGitRepo,
+  isVcsRepo,
+  vcsKind,
   openInCwd,
   activeProjectScripts,
   preferredScriptId,
@@ -87,6 +91,7 @@ export const ChatHeader = memo(function ChatHeader({
     activeThreadEnvironmentId,
     primaryEnvironmentId,
   });
+  const vcsTerms = resolveVcsTerms(vcsKind);
 
   return (
     <div className="@container/header-actions flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -106,9 +111,9 @@ export const ChatHeader = memo(function ChatHeader({
             <span className="min-w-0 truncate">{activeProjectName}</span>
           </Badge>
         )}
-        {activeProjectName && !isGitRepo && (
+        {activeProjectName && !isVcsRepo && (
           <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
-            No Git
+            No repository
           </Badge>
         )}
       </div>
@@ -172,15 +177,15 @@ export const ChatHeader = memo(function ChatHeader({
                 aria-label="Toggle diff panel"
                 variant="outline"
                 size="xs"
-                disabled={!isGitRepo && !diffOpen}
+                disabled={!isVcsRepo && !diffOpen}
               >
                 <DiffIcon className="size-3" />
               </Toggle>
             }
           />
           <TooltipPopup side="bottom">
-            {!isGitRepo && !diffOpen
-              ? "Diff panel is unavailable because this project is not a git repository."
+            {!isVcsRepo && !diffOpen
+              ? `Diff panel is unavailable because this project is not a supported ${vcsTerms.repositoryNoun}.`
               : diffToggleShortcutLabel
                 ? `Toggle diff panel (${diffToggleShortcutLabel})`
                 : "Toggle diff panel"}
