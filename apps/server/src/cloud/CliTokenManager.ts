@@ -223,7 +223,9 @@ const make = Effect.gen(function* () {
   );
   const get = semaphore.withPermits(1)(
     Effect.gen(function* () {
-      const token = yield* getExistingNoLock();
+      const token = yield* getExistingNoLock().pipe(
+        Effect.catch(() => Effect.succeed(Option.none<PersistedToken>())),
+      );
       return Option.isSome(token)
         ? token.value
         : yield* Effect.scoped(login()).pipe(Effect.flatMap(persist));
